@@ -4,6 +4,10 @@ import SnapshotTesting
 import ValidationNearSemiring
 import XCTest
 
+#if !os(Linux)
+typealias SnapshotTestCase = XCTestCase
+#endif
+
 func validate(name: String) -> Validation<FreeNearSemiring<String>, String> {
   return !name.isEmpty
     ? pure(name)
@@ -39,13 +43,18 @@ struct User {
 
 let createUser = { name in { bio in { contact in User(name: name, bio: bio, contact: contact) } } }
 
-class ValidationNearSemiringTests: XCTestCase {
+class ValidationNearSemiringTests: SnapshotTestCase {
+  override func setUp() {
+    super.setUp()
+//    record = true
+  }
+
   func testValidData() {
     let user = createUser
       <¢> validate(name: "Stephen")
       <*> validate(bio: "Stuff")
       <*> (validate(email: "stephen@pointfree.co").map(Either.left) <|> validate(phone: "").map(Either.right))
-    assertSnapshot(matching: user)
+    assertSnapshot(matching: user, as: .dump)
   }
 
   func testInvalidData() {
@@ -53,6 +62,6 @@ class ValidationNearSemiringTests: XCTestCase {
       <¢> validate(name: "")
       <*> validate(bio: "Doin lots of stuff")
       <*> (validate(email: "stephen").map(Either.left) <|> validate(phone: "123456").map(Either.right))
-    assertSnapshot(matching: user)
+    assertSnapshot(matching: user, as: .dump)
   }
 }

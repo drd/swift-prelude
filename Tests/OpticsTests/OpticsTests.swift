@@ -4,6 +4,10 @@ import Prelude
 import SnapshotTesting
 import XCTest
 
+#if !os(Linux)
+typealias SnapshotTestCase = XCTestCase
+#endif
+
 struct User {
   private(set) var id: Int
   private(set) var name: String
@@ -32,7 +36,12 @@ let episode = Episode(
   isSubscriberOnly: false
 )
 
-class OpticsTests: XCTestCase {
+class OpticsTests: SnapshotTestCase {
+  override func setUp() {
+    super.setUp()
+//    record = true
+  }
+
   func testViewOn() {
     XCTAssertEqual("Blob", user .^ \.name)
     XCTAssertEqual("Blob", episode .^ \.host.name)
@@ -42,7 +51,10 @@ class OpticsTests: XCTestCase {
   func testIx() {
     XCTAssertEqual(999, [1, 999, 2] .^ ix(1))
 
-    assertSnapshot(matching: episode |> \.guests <<< ix(1) <<< \.name .~ "Pleb")
+    assertSnapshot(
+      matching: episode |> \.guests <<< ix(1) <<< \.name .~ "Pleb",
+      as: .dump
+    )
   }
 
   func testKey() {
@@ -65,43 +77,49 @@ class OpticsTests: XCTestCase {
   }
 
   func testOver() {
-    assertSnapshot(matching: episode |> \.host.name %~ uppercased)
+    assertSnapshot(matching: episode |> \.host.name %~ uppercased, as: .dump)
   }
 
   func testSet() {
-    assertSnapshot(matching: episode |> \.host.name .~ "Reblob")
+    assertSnapshot(matching: episode |> \.host.name .~ "Reblob", as: .dump)
   }
 
   func testAddOver() {
-    assertSnapshot(matching: episode |> \.id +~ 1)
+    assertSnapshot(matching: episode |> \.id +~ 1, as: .dump)
   }
 
   func testSubOver() {
-    assertSnapshot(matching: episode |> \.id -~ 1)
+    assertSnapshot(matching: episode |> \.id -~ 1, as: .dump)
   }
 
   func testMulOver() {
-    assertSnapshot(matching: episode |> \.id *~ 2)
+    assertSnapshot(matching: episode |> \.id *~ 2, as: .dump)
   }
 
   func testDivOver() {
-    assertSnapshot(matching: episode |> \.id /~ 2)
+    assertSnapshot(matching: episode |> \.id /~ 2, as: .dump)
   }
 
   func testDisjOver() {
-    assertSnapshot(matching: episode
-      |> \.isSubscriberOnly .~ true
-      |> \.isSubscriberOnly &&~ false)
+    assertSnapshot(
+      matching: episode
+        |> \.isSubscriberOnly .~ true
+        |> \.isSubscriberOnly &&~ false,
+      as: .dump
+    )
   }
 
   func testConjOver() {
-    assertSnapshot(matching: episode
-      |> \.isSubscriberOnly .~ false
-      |> \.isSubscriberOnly ||~ true)
+    assertSnapshot(
+      matching: episode
+        |> \.isSubscriberOnly .~ false
+        |> \.isSubscriberOnly ||~ true,
+      as: .dump
+    )
   }
 
   func testAppendOver() {
-    assertSnapshot(matching: episode |> \.host.name <>~ " Blobby")
+    assertSnapshot(matching: episode |> \.host.name <>~ " Blobby", as: .dump)
   }
 
   func testTraversed() {
@@ -109,48 +127,65 @@ class OpticsTests: XCTestCase {
 
     XCTAssertEqual([2, 3, 4], [1, 2, 3] |> traversed +~ 1)
 
-    assertSnapshot(matching: episode |> \.guests <<< traversed <<< \.name %~ uppercased,
-                   named: "Array traversal")
+    assertSnapshot(
+      matching: episode |> \.guests <<< traversed <<< \.name %~ uppercased,
+      as: .dump,
+      named: "Array traversal"
+    )
 
-    assertSnapshot(matching: episode |> \.cohost <<< traversed <<< \.name %~ uppercased,
-                   named: "None traversal")
+    assertSnapshot(
+      matching: episode |> \.cohost <<< traversed <<< \.name %~ uppercased,
+      as: .dump,
+      named: "None traversal"
+    )
 
-    assertSnapshot(matching: episode |> \.cohost .~ user |> \.cohost <<< traversed <<< \.name %~ uppercased,
-                   named: "Some traversal")
+    assertSnapshot(
+      matching: episode
+        |> \.cohost .~ user
+        |> \.cohost <<< traversed <<< \.name %~ uppercased,
+      as: .dump,
+      named: "Some traversal"
+    )
   }
 
   func testStrongPrisms() {
-    assertSnapshot(matching: ((1, 2), 3) |> first <<< second .~ "Haha!")
+    assertSnapshot(matching: ((1, 2), 3) |> first <<< second .~ "Haha!", as: .dump)
   }
 
   func testChoicePrisms() {
     assertSnapshot(
       matching: Either<String, Either<String, Int>>.right(.right(1)) |> right <<< right .~ 999,
+      as: .dump,
       named: "Successful nested right-hand traversal"
     )
 
     assertSnapshot(
       matching: Either<String, Either<String, Int>>.right(.left("Oops")) |> right <<< left %~ uppercased,
+      as: .dump,
       named: "Successful nested left-hand traversal"
     )
 
     assertSnapshot(
       matching: Either<String, Either<String, Int>>.left("Oops") |> left %~ uppercased,
-      named: "SUccessful left-hand traversal"
+      as: .dump,
+      named: "Successful left-hand traversal"
     )
 
     assertSnapshot(
       matching: Either<String, Either<String, Int>>.left("Oops") |> right <<< right +~ 1,
+      as: .dump,
       named: "Unsuccessful right-hand traversal"
     )
 
     assertSnapshot(
       matching: .some(1) |> some .~ "Hehe.",
+      as: .dump,
       named: "Successful some traversal"
     )
 
     assertSnapshot(
       matching: Int?.none |> some .~ "Hehe.",
+      as: .dump,
       named: "Unsuccessful some traversal"
     )
   }
@@ -166,11 +201,13 @@ class OpticsTests: XCTestCase {
 
     assertSnapshot(
       matching: data |> first <<< traversed <<< left <<< traversed <<< some +~ 1,
+      as: .dump,
       named: "Nested choice prismatic traversals"
     )
 
     assertSnapshot(
       matching: data |> first <<< ix(0) <<< left <<< ix(0) .~ 99,
+      as: .dump,
       named: "Nested indexed choice"
     )
   }
